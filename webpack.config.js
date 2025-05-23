@@ -1,6 +1,7 @@
 const path = require('path');
 
 const src = path.resolve(__dirname, 'src');
+const dist = path.resolve(__dirname, 'dist');
 
 module.exports = {
   mode: 'development',
@@ -20,7 +21,7 @@ module.exports = {
   },
   output: {
     filename: 'index.js',
-    path: src
+    path: dist
   },
   devServer: {
     static: src,

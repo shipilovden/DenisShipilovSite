@@ -6,7 +6,8 @@
   "scripts": {
     "start": "npm run build && npm run serve",
     "build": "webpack",
-    "serve": "webpack serve"
+    "serve": "webpack serve",
+    "vercel-build": "webpack && mkdir -p dist && cp src/index.html dist/ && mkdir -p dist/models && cp -r models/* dist/models/ || true"
   },
   "keywords": [],
   "author": "",

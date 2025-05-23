@@ -146,7 +146,7 @@ function createApplyButton() {
 const applyButton = createApplyButton();
 
 // Загрузка модели и настройка управления
-new GLTFLoader().load('models/Soldier.glb', function (gltf) {
+new GLTFLoader().load('/models/Soldier.glb', function (gltf) {
   model = gltf.scene;
   model.traverse(function (object: any) {
     if (object.isMesh) object.castShadow = true;
