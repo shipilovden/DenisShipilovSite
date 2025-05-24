@@ -1,300 +1,300 @@
 
-import { KeyDisplay } from './utils';
-import { CharacterControls } from './characterControls';
-import { GameMenu } from './menu';
-import { GameScene } from './scene';
-import { GameCamera } from './camera';
-import { GameRenderer } from './renderer';
-import { MobileControls } from './mobileControls';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GameCamera } from './camera';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { createSettingsPanel } from './ui/settingsPanel';
+import { CharacterControls } from './characterControls';
+import { keyDown, keyUp, SHIFT } from './utils';
+import { setupAtmosphere } from './atmosphere/AtmosphereSettings';
 
-// Инициализация основных компонентов
-const renderer = new GameRenderer();
-const gameScene = new GameScene();
-const camera = new GameCamera(renderer.getRenderer());
-const gameMenu = new GameMenu();
-const mobileControls = new MobileControls();
-
-// Проверяем, нужно ли показать мобильные элементы управления сразу
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM fully loaded, checking if mobile controls should be shown');
-  
-  // Проверяем, является ли устройство мобильным или эмулятором
-  const isMobile = mobileControls.isMobileDevice();
-  const isDevMode = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  
-  if (isMobile || (isDevMode && window.innerWidth < 800)) {
-    console.log('Showing mobile controls on initial load');
-    mobileControls.showControls();
+// Объявляем глобальную функцию для запуска игры
+declare global {
+  interface Window {
+    startGame: () => Promise<void>;
   }
-});
+}
 
-// Получаем объекты для использования
-const scene = gameScene.getScene();
-const mainCamera = camera.getCamera();
-const orbitControls = camera.getControls();
+// Основные переменные
+let scene: THREE.Scene;
+let camera: THREE.PerspectiveCamera;
+let renderer: THREE.WebGLRenderer;
+let controls: OrbitControls;
+let playerModel: THREE.Group | null = null;
+let sun: THREE.DirectionalLight;
+let gameCamera: GameCamera;
 
-const keysPressed: Record<string, boolean> = {};
-const keyDisplayQueue = new KeyDisplay();
-keyDisplayQueue.updatePosition();
-
-let model: THREE.Group;
+// Переменные для анимации и управления
 let characterControls: CharacterControls;
-let gltfAnimations: THREE.AnimationClip[];
-let isGameStarted = false;
+let mixer: THREE.AnimationMixer;
+let animations: THREE.AnimationClip[] = [];
+let clock = new THREE.Clock();
+let keysPressed: {[key: string]: boolean} = {};
 
-// Добавляем объекты на сцену
-function createSceneObjects() {
-  // Создаем несколько деревьев
-  gameScene.createTree({
-    position: new THREE.Vector3(5, 0, 5),
-    trunkHeight: 2,
-    leavesRadius: 1.2
-  });
+// Добавление освещения
+function addLighting() {
+  // Добавляем окружающий свет
+  const ambientLight = new THREE.AmbientLight(0x404040, 1);
+  scene.add(ambientLight);
   
-  gameScene.createTree({
-    position: new THREE.Vector3(-7, 0, 3),
-    trunkHeight: 2.5,
-    leavesRadius: 1.5
-  });
+  // Добавляем направленный свет (солнце)
+  sun = new THREE.DirectionalLight(0xffffff, 1);
+  sun.position.set(10, 10, 10);
+  sun.castShadow = true;
   
-  // Создаем дом
-  gameScene.createHouse({
-    position: new THREE.Vector3(10, 0, -10),
-    width: 5,
-    height: 3.5,
-    depth: 5
-  });
+  // Настраиваем тени
+  sun.shadow.mapSize.width = 2048;
+  sun.shadow.mapSize.height = 2048;
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 50;
   
-  // Создаем группу камней
-  const rocksGroup = gameScene.createGroup("rocks");
-  
-  const rock1 = gameScene.createSphere({
-    position: new THREE.Vector3(-5, 0.5, -5),
-    radius: 0.5,
-    color: 0x808080,
-    name: "rock1"
-  });
-  
-  const rock2 = gameScene.createSphere({
-    position: new THREE.Vector3(-4.5, 0.3, -4.5),
-    radius: 0.3,
-    color: 0x707070,
-    name: "rock2"
-  });
-  
-  const rock3 = gameScene.createSphere({
-    position: new THREE.Vector3(-5.5, 0.4, -4.8),
-    radius: 0.4,
-    color: 0x909090,
-    name: "rock3"
-  });
-  
-  // Добавляем камни в группу
-  rocksGroup.add(rock1);
-  rocksGroup.add(rock2);
-  rocksGroup.add(rock3);
-  
-  // Создаем куб
-  const cube = gameScene.createCube({
-    position: new THREE.Vector3(0, 1, -15),
-    size: 2,
-    color: 0xff0000
-  });
-  
-  // Создаем спрайт (например, для маркера или иконки)
-  gameScene.createSprite({
-    position: new THREE.Vector3(0, 5, 0),
-    scale: new THREE.Vector2(2, 2),
-    color: 0xffff00
-  });
-  
-  // Или можно просто заполнить сцену случайными объектами
-  // gameScene.populateScene(20);
+  scene.add(sun);
 }
 
-// Вызываем функцию создания объектов
-createSceneObjects();
-
-// Создаем кнопку Apply
-function createApplyButton() {
-  const applyButton = document.createElement('button');
-  applyButton.textContent = 'APPLY';
-  applyButton.style.position = 'absolute';
-  applyButton.style.bottom = '20px';
-  applyButton.style.right = '20px';
-  applyButton.style.padding = '10px 20px';
-  applyButton.style.fontSize = '18px';
-  applyButton.style.backgroundColor = '#4CAF50';
-  applyButton.style.color = 'white';
-  applyButton.style.border = 'none';
-  applyButton.style.borderRadius = '5px';
-  applyButton.style.cursor = 'pointer';
-  applyButton.style.zIndex = '1000';
-  
-  applyButton.addEventListener('click', () => {
-    console.log('Apply changes');
-    // Здесь можно добавить логику применения изменений
+// Добавление пола
+function addGround() {
+  // Создаем геометрию пола
+  const groundGeometry = new THREE.PlaneGeometry(100, 100);
+  const groundMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x556B2F,
+    roughness: 0.8,
+    metalness: 0.2
   });
   
-  document.body.appendChild(applyButton);
-  return applyButton;
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2; // Поворачиваем горизонтально
+  ground.receiveShadow = true;
+  
+  scene.add(ground);
 }
 
-// Создаем кнопку Apply
-const applyButton = createApplyButton();
-
-// Загрузка модели и настройка управления
-new GLTFLoader().load('/models/Soldier.glb', function (gltf) {
-  model = gltf.scene;
-  model.traverse(function (object: any) {
-    if (object.isMesh) object.castShadow = true;
-  });
-  gameScene.add(model);
-
-  gltfAnimations = gltf.animations;
-  const mixer = new THREE.AnimationMixer(model);
-  const animationsMap: Map<string, THREE.AnimationAction> = new Map();
-  gltfAnimations.filter(a => a.name !== 'TPose').forEach((a: THREE.AnimationClip) => {
-    animationsMap.set(a.name, mixer.clipAction(a));
-  });
-
-  characterControls = new CharacterControls(model, mixer, animationsMap, orbitControls, mainCamera, 'Idle');
+// Инициализация базовых компонентов
+function init() {
+  console.log('Initializing game components');
   
-  // Настраиваем мобильные элементы управления
-  setupMobileControls();
+  // Создаем рендерер
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  // Создаем камеру после рендерера
+  gameCamera = new GameCamera(renderer);
+  camera = gameCamera.getCamera();
+  controls = gameCamera.getControls();
+
+  // Создаем сцену
+  scene = new THREE.Scene();
+
+  // Настраиваем атмосферу
+  setupAtmosphere(scene, camera);
+
+  // Добавляем базовое освещение
+  addLighting();
+
+  // Добавляем пол
+  addGround();
+
+  // Обработчик изменения размера окна
+  window.addEventListener('resize', onWindowResize, false);
   
-  // Запускаем анимацию
+  // Обработчики клавиатуры
+  document.addEventListener('keydown', (e) => keyDown(e, keysPressed), false);
+  document.addEventListener('keyup', (e) => keyUp(e, keysPressed), false);
+  
+  // Запускаем цикл анимации
   animate();
-});
+  
+  console.log('Game initialized');
+}
 
-// Настройка мобильных элементов управления
-function setupMobileControls() {
-  // Показываем элементы управления, если устройство мобильное
-  if (mobileControls.isMobileDevice()) {
-    mobileControls.showControls();
-  } else {
-    // Для тестирования на десктопе можно принудительно показать элементы управления
-    mobileControls.showControls();
-  }
+// Обработчик изменения размера окна
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Создание простого игрока (куба)
+function createDefaultPlayer() {
+  console.log('Creating default player cube');
   
-  // Настраиваем обработчики событий для джойстика
-  mobileControls.onJoystickMove((x, y) => {
-    // Сбрасываем все клавиши
-    keysPressed['w'] = false;
-    keysPressed['a'] = false;
-    keysPressed['s'] = false;
-    keysPressed['d'] = false;
+  // Создаем простой куб вместо модели
+  const geometry = new THREE.BoxGeometry(1, 2, 1);
+  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.set(0, 1, 0); // Поднимаем куб, чтобы он стоял на земле
+  
+  scene.add(cube);
+  playerModel = new THREE.Group();
+  playerModel.add(cube);
+}
+
+// Загрузка модели игрока с анимацией
+async function loadPlayerModel(): Promise<void> {
+  console.log('Loading player model...');
+  
+  return new Promise<void>((resolve, reject) => {
+    const loader = new GLTFLoader();
     
-    // Устанавливаем нажатые клавиши в зависимости от положения джойстика
-    if (y > 0.3) keysPressed['w'] = true;
-    if (y < -0.3) keysPressed['s'] = true;
-    if (x < -0.3) keysPressed['a'] = true;
-    if (x > 0.3) keysPressed['d'] = true;
-  });
-  
-  mobileControls.onJoystickEnd(() => {
-    // Сбрасываем все клавиши при отпускании джойстика
-    keysPressed['w'] = false;
-    keysPressed['a'] = false;
-    keysPressed['s'] = false;
-    keysPressed['d'] = false;
-  });
-  
-  // Настраиваем обработчики для кнопок
-  mobileControls.onJump((pressed) => {
-    // Можно добавить прыжок, если он реализован в CharacterControls
-    console.log('Jump button pressed:', pressed);
-  });
-  
-  mobileControls.onRun((pressed) => {
-    if (characterControls) {
-      if (pressed) {
-        characterControls.switchRunToggle();
+    // Пробуем загрузить Soldier.glb
+    loader.load(
+      'models/Soldier.glb',
+      (gltf) => {
+        playerModel = gltf.scene;
+        playerModel.position.set(0, 0, 0);
+        playerModel.scale.set(1, 1, 1);
+        
+        // Настраиваем тени для всех мешей модели
+        playerModel.traverse((object) => {
+          if (object instanceof THREE.Mesh) {
+            object.castShadow = true;
+            object.receiveShadow = true;
+          }
+        });
+        
+        scene.add(playerModel);
+        
+        // Настраиваем анимацию
+        animations = gltf.animations;
+        if (animations && animations.length > 0) {
+          console.log(`Found ${animations.length} animations`);
+          
+          // Создаем микшер анимаций
+          mixer = new THREE.AnimationMixer(playerModel);
+          
+          // Создаем карту анимаций для CharacterControls
+          const animationsMap = new Map();
+          
+          // Ищем анимации Idle, Walk и Run
+          let idleAnim = animations.find(a => a.name.toLowerCase().includes('idle'));
+          let walkAnim = animations.find(a => a.name.toLowerCase().includes('walk'));
+          let runAnim = animations.find(a => a.name.toLowerCase().includes('run'));
+          
+          // Если не нашли конкретные анимации, используем первые доступные
+          if (!idleAnim && animations.length > 0) idleAnim = animations[0];
+          if (!walkAnim && animations.length > 1) walkAnim = animations[1];
+          if (!runAnim && animations.length > 2) runAnim = animations[2];
+          
+          // Добавляем анимации в карту
+          if (idleAnim) animationsMap.set('Idle', mixer.clipAction(idleAnim));
+          if (walkAnim) animationsMap.set('Walk', mixer.clipAction(walkAnim));
+          if (runAnim) animationsMap.set('Run', mixer.clipAction(runAnim));
+          
+          // Если не нашли все три анимации, используем доступные
+          if (animationsMap.size < 3) {
+            console.warn('Not all required animations found. Using available animations.');
+            
+            // Если нет Idle, используем первую анимацию
+            if (!animationsMap.has('Idle')) {
+              animationsMap.set('Idle', mixer.clipAction(animations[0]));
+            }
+            
+            // Если нет Walk, дублируем Idle или используем вторую анимацию
+            if (!animationsMap.has('Walk')) {
+              if (animations.length > 1) {
+                animationsMap.set('Walk', mixer.clipAction(animations[1]));
+              } else if (animationsMap.has('Idle')) {
+                animationsMap.set('Walk', mixer.clipAction(idleAnim));
+              }
+            }
+            
+            // Если нет Run, дублируем Walk или используем третью анимацию
+            if (!animationsMap.has('Run')) {
+              if (animations.length > 2) {
+                animationsMap.set('Run', mixer.clipAction(animations[2]));
+              } else if (animationsMap.has('Walk')) {
+                animationsMap.set('Run', mixer.clipAction(walkAnim));
+              } else if (animationsMap.has('Idle')) {
+                animationsMap.set('Run', mixer.clipAction(idleAnim));
+              }
+            }
+          }
+          
+          // Создаем контроллер персонажа
+          characterControls = new CharacterControls(
+            playerModel,
+            mixer,
+            animationsMap,
+            controls,
+            camera,
+            'Idle'
+          );
+          
+          // Выводим названия всех анимаций
+          animations.forEach((clip, index) => {
+            console.log(`Animation ${index}: ${clip.name}`);
+          });
+        } else {
+          console.warn('No animations found in the model');
+        }
+        
+        console.log('Soldier model loaded successfully');
+        resolve();
+      },
+      (xhr) => {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+      },
+      (error) => {
+        console.error('Error loading Soldier model:', error);
+        reject(error);
       }
-    }
-  });
-  
-  mobileControls.onAction((pressed) => {
-    // Действие (например, взаимодействие с объектами)
-    console.log('Action button pressed:', pressed);
+    );
   });
 }
 
-// Обработка нажатия клавиш (только когда игра запущена)
-document.addEventListener('keydown', (event) => {
-  if (!isGameStarted) return;
+// Функция для запуска игры
+window.startGame = async function() {
+  console.log('Starting game...');
   
-  keyDisplayQueue.down(event.key);
-  if (event.shiftKey && characterControls) {
-    characterControls.switchRunToggle();
-  } else {
-    keysPressed[event.key.toLowerCase()] = true;
+  try {
+    // Загружаем модель игрока
+    await loadPlayerModel();
+    
+    // Создаем панель настроек
+    createSettingsPanel(scene, sun, renderer);
+    
+    console.log('Game started successfully');
+  } catch (error) {
+    console.error('Error starting game:', error);
+    createDefaultPlayer();
+    
+    // Создаем панель настроек даже при ошибке
+    createSettingsPanel(scene, sun, renderer);
   }
-}, false);
+};
 
-document.addEventListener('keyup', (event) => {
-  if (!isGameStarted) return;
-  
-  keyDisplayQueue.up(event.key);
-  keysPressed[event.key.toLowerCase()] = false;
-}, false);
-
-// Обработчик для кнопки Escape (пауза/меню)
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    if (isGameStarted) {
-      isGameStarted = false;
-      gameMenu.show();
-      
-      // Скрываем мобильные элементы управления при открытии меню
-      mobileControls.hideControls();
-    }
-  }
-});
-
-// Настраиваем обработчик для кнопки старта
-gameMenu.onStart(() => {
-  isGameStarted = true;
-  
-  // Показываем мобильные элементы управления при старте игры
-  if (mobileControls.isMobileDevice()) {
-    mobileControls.showControls();
-  }
-});
-
-const clock = new THREE.Clock();
-
+// Функция анимации (главный цикл)
 function animate() {
   requestAnimationFrame(animate);
-
+  
+  // Получаем дельту времени
   const delta = clock.getDelta();
   
-  // Обновляем контроллер персонажа только если игра запущена
-  if (characterControls && isGameStarted) {
+  // Обновляем контроллер персонажа, если он существует
+  if (characterControls) {
     characterControls.update(delta, keysPressed);
   }
-
-  camera.update();
-  renderer.render(scene, mainCamera);
+  
+  // Обновляем контроллеры камеры
+  gameCamera.update();
+  
+  // Рендерим сцену
+  renderer.render(scene, camera);
 }
 
-function onWindowResize() {
-  camera.resize();
-  renderer.resize();
-  keyDisplayQueue.updatePosition();
+// Инициализация при загрузке страницы
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
 }
-window.addEventListener('resize', onWindowResize);
 
-// Загрузка дополнительных моделей
-gameScene.loadModel({
-  path: 'models/tree.glb',
-  position: new THREE.Vector3(15, 0, 15),
-  scale: 2,
-  name: 'customTree',
-  onLoad: (model) => {
-    console.log('Tree model loaded!');
-    // Здесь можно выполнить дополнительные действия с загруженной моделью
+// Добавляем обработчик клавиши Shift для переключения бега/ходьбы
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === SHIFT && characterControls) {
+    characterControls.switchRunToggle();
   }
 });

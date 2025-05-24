@@ -1,29 +1,38 @@
 import * as THREE from 'three';
 
-export class GameRenderer {
+export class Renderer {
   private renderer: THREE.WebGLRenderer;
   
   constructor() {
-    // Создаем рендерер
+    console.log('Initializing Renderer');
+    
+    // Создаем WebGL рендерер
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     
-    // Добавляем canvas на страницу
-    document.body.appendChild(this.renderer.domElement);
+    // Устанавливаем стили для canvas
+    const canvas = this.renderer.domElement;
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.zIndex = '0';
+    
+    // Добавляем canvas в DOM
+    document.body.appendChild(canvas);
+    
+    console.log('Renderer initialized');
   }
   
   public getRenderer(): THREE.WebGLRenderer {
     return this.renderer;
   }
   
-  public render(scene: THREE.Scene, camera: THREE.Camera): void {
-    this.renderer.render(scene, camera);
-  }
-  
-  public resize(): void {
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+  public setSize(width: number, height: number): void {
+    this.renderer.setSize(width, height);
   }
 }
+
+

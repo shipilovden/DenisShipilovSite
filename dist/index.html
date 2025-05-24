@@ -48,24 +48,17 @@
 </head>
 <body>
     <div id="game-menu">
-        <button id="start-game-button" onclick="startGameManually()">START GAME</button>
+        <button id="start-game-button">START GAME</button>
     </div>
-    
-    <script>
-        // Глобальная функция для запуска игры
-        function startGameManually() {
-            console.log('Button clicked manually');
-            document.getElementById('game-menu').style.display = 'none';
-            
-            // Если игра уже загружена, запускаем её
-            if (window.startGame) {
-                window.startGame();
-            } else {
-                console.error('Game not loaded yet');
-            }
-        }
-    </script>
-    
     <script src="index.js"></script>
+    <script>
+        // Добавляем прямой обработчик события для кнопки
+        document.getElementById('start-game-button').addEventListener('click', function() {
+            console.log('Button clicked directly from HTML');
+            // Создаем и отправляем пользовательское событие
+            const event = new CustomEvent('gameStart');
+            document.dispatchEvent(event);
+        });
+    </script>
 </body>
 </html>

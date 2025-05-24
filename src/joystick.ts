@@ -22,6 +22,16 @@ export class Joystick {
     this.container = document.createElement('div');
     this.stick = document.createElement('div');
     
+    // Проверяем, является ли устройство мобильным
+    const isMobile = this.isMobileDevice();
+    
+    // Устанавливаем размер джойстика (увеличенный для мобильных)
+    if (isMobile) {
+      this.baseSize = 200; // Увеличиваем в 2 раза для мобильных
+      this.stickSize = 100;
+      this.maxDistance = 80;
+    }
+    
     // Стилизуем основу джойстика
     this.container.style.position = 'absolute';
     this.container.style.bottom = '100px';
@@ -57,6 +67,12 @@ export class Joystick {
     
     // Добавляем обработчики событий
     this.setupEventListeners();
+  }
+  
+  // Проверка на мобильное устройство
+  private isMobileDevice(): boolean {
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
   }
   
   // Настройка обработчиков событий
@@ -143,7 +159,7 @@ export class Joystick {
   private onTouchEnd(event: TouchEvent): void {
     if (!this.active) return;
     
-    // Проверяем, что закончилось именно наше касание
+    // Проверяем, что это наше касание
     let touchFound = false;
     for (let i = 0; i < event.touches.length; i++) {
       if (event.touches[i].identifier === this.touchId) {
@@ -172,50 +188,29 @@ export class Joystick {
     }
   }
   
-  // Обработчик изменения размера экрана
+  // Обработчик изменения размера окна
   private onResize(): void {
-    // Пересчитываем центр
-    this.centerX = this.baseSize / 2 - this.stickSize / 2;
-    this.centerY = this.baseSize / 2 - this.stickSize / 2;
-    
-    // Возвращаем ручку в центр
-    this.stick.style.left = `${this.centerX}px`;
-    this.stick.style.top = `${this.centerY}px`;
+    // Обновляем позицию джойстика при изменении размера окна
+    // Можно добавить дополнительную логику
   }
   
-  // Показать джойстик
-  public show(): void {
-    this.container.style.display = 'block';
-  }
-  
-  // Скрыть джойстик
-  public hide(): void {
-    this.container.style.display = 'none';
-  }
-  
-  // Получить значение по оси X
-  public get xValue(): number {
-    return this._xValue;
-  }
-  
-  // Получить значение по оси Y
-  public get yValue(): number {
-    return this._yValue;
-  }
-  
-  // Установить обработчик движения
+  // Методы для установки обработчиков
   public onMove(callback: (x: number, y: number) => void): void {
     this.onMoveCallback = callback;
   }
   
-  // Установить обработчик окончания касания
   public onEnd(callback: () => void): void {
     this.onEndCallback = callback;
   }
   
-  // Изменить позицию джойстика на экране
-  public setPosition(left: number, bottom: number): void {
-    this.container.style.left = `${left}px`;
-    this.container.style.bottom = `${bottom}px`;
+  // Методы для показа/скрытия джойстика
+  public show(): void {
+    this.container.style.display = 'block';
+  }
+  
+  public hide(): void {
+    this.container.style.display = 'none';
   }
 }
+
+

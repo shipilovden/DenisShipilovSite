@@ -1,211 +1,203 @@
-import { Joystick } from './joystick';
+
+import * as THREE from 'three';
 
 export class MobileControls {
-  private joystick: Joystick;
-  private jumpButton: HTMLElement;
+  // Приватные свойства
+  private joystickContainer: HTMLElement;
+  private joystickKnob: HTMLElement;
   private runButton: HTMLElement;
-  private actionButton: HTMLElement;
-  private isMobile: boolean;
+  private joystickXValue: number = 0;
+  private joystickYValue: number = 0;
   
-  // Состояние кнопок
-  private _jumpPressed: boolean = false;
-  private _runPressed: boolean = false;
-  private _actionPressed: boolean = false;
-  
-  // Обработчики событий
-  private onJumpCallback: ((pressed: boolean) => void) | null = null;
-  private onRunCallback: ((pressed: boolean) => void) | null = null;
-  private onActionCallback: ((pressed: boolean) => void) | null = null;
+  // Колбэки для внешних обработчиков
+  private joystickMoveCallback: ((x: number, y: number) => void) | null = null;
+  private joystickEndCallback: (() => void) | null = null;
+  private runButtonCallback: ((pressed: boolean) => void) | null = null;
   
   constructor() {
-    // Проверяем, является ли устройство мобильным
-    this.isMobile = this.isMobileDevice();
-    console.log('MobileControls constructor - Is mobile device:', this.isMobile);
+    // Создаем элементы управления
+    this.joystickContainer = this.createJoystickContainer();
+    this.joystickKnob = this.createJoystickKnob();
+    this.runButton = this.createRunButton();
     
-    // Создаем джойстик
-    this.joystick = new Joystick();
+    // Добавляем элементы в DOM
+    this.joystickContainer.appendChild(this.joystickKnob);
+    document.body.appendChild(this.joystickContainer);
+    document.body.appendChild(this.runButton);
     
-    // Создаем кнопки
-    this.jumpButton = this.createButton('JUMP', 'right', 150);
-    this.runButton = this.createButton('RUN', 'right', 80);
-    this.actionButton = this.createButton('ACTION', 'right', 220);
+    // Скрываем элементы по умолчанию
+    this.hideControls();
     
-    // Настраиваем обработчики событий для кнопок
-    this.setupButtonEvents();
-    
-    // Автоматически показываем элементы управления, если это мобильное устройство
-    if (this.isMobile) {
-      console.log('Auto-showing mobile controls on construction');
-      this.showControls();
-    }
+    // Настраиваем обработчики событий
+    this.setupEventListeners();
   }
   
-  // Создание кнопки
-  private createButton(text: string, position: 'left' | 'right', bottom: number): HTMLElement {
+  // ПУБЛИЧНЫЕ методы для регистрации обработчиков
+  public onJoystickMove(callback: (x: number, y: number) => void): void {
+    this.joystickMoveCallback = callback;
+  }
+  
+  public onJoystickEnd(callback: () => void): void {
+    this.joystickEndCallback = callback;
+  }
+  
+  public onRun(callback: (pressed: boolean) => void): void {
+    this.runButtonCallback = callback;
+  }
+  
+  // Метод для проверки мобильного устройства
+  public isMobileDevice(): boolean {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+  
+  // Методы для показа/скрытия элементов управления
+  public showControls(): void {
+    this.joystickContainer.style.display = 'block';
+    this.runButton.style.display = 'block';
+  }
+  
+  public hideControls(): void {
+    this.joystickContainer.style.display = 'none';
+    this.runButton.style.display = 'none';
+  }
+  
+  // ПРИВАТНЫЕ методы
+  private createJoystickContainer(): HTMLElement {
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.bottom = '100px';
+    container.style.left = '100px';
+    container.style.width = '120px';
+    container.style.height = '120px';
+    container.style.borderRadius = '60px';
+    container.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+    container.style.border = '2px solid rgba(255, 255, 255, 0.5)';
+    container.style.touchAction = 'none';
+    return container;
+  }
+  
+  private createJoystickKnob(): HTMLElement {
+    const knob = document.createElement('div');
+    knob.style.position = 'absolute';
+    knob.style.top = '50%';
+    knob.style.left = '50%';
+    knob.style.transform = 'translate(-50%, -50%)';
+    knob.style.width = '50px';
+    knob.style.height = '50px';
+    knob.style.borderRadius = '25px';
+    knob.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    return knob;
+  }
+  
+  private createRunButton(): HTMLElement {
     const button = document.createElement('div');
-    
-    // Стилизуем кнопку
     button.style.position = 'absolute';
-    button.style.bottom = `${bottom}px`;
-    button.style.right = position === 'right' ? '50px' : 'auto';
-    button.style.left = position === 'left' ? '50px' : 'auto';
+    button.style.bottom = '100px';
+    button.style.right = '100px';
     button.style.width = '80px';
-    button.style.height = '50px';
-    button.style.borderRadius = '25px';
-    button.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+    button.style.height = '80px';
+    button.style.borderRadius = '40px';
+    button.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
     button.style.border = '2px solid rgba(255, 255, 255, 0.5)';
-    button.style.color = 'white';
     button.style.display = 'flex';
     button.style.justifyContent = 'center';
     button.style.alignItems = 'center';
-    button.style.fontFamily = 'Arial, sans-serif';
-    button.style.fontSize = '16px';
+    button.style.color = 'white';
     button.style.fontWeight = 'bold';
-    button.style.userSelect = 'none';
+    button.style.fontSize = '16px';
+    button.textContent = 'RUN';
     button.style.touchAction = 'none';
-    button.style.zIndex = '1000';
-    button.style.display = 'none'; // Скрыт по умолчанию
-    
-    // Добавляем текст
-    button.textContent = text;
-    
-    // Добавляем кнопку в DOM
-    document.body.appendChild(button);
-    
     return button;
   }
   
-  // Настройка обработчиков событий для кнопок
-  private setupButtonEvents(): void {
-    // Обработчики для кнопки прыжка
-    this.setupButtonTouchEvents(this.jumpButton, (pressed) => {
-      this._jumpPressed = pressed;
-      if (this.onJumpCallback) {
-        this.onJumpCallback(pressed);
-      }
-    });
+  private setupEventListeners(): void {
+    // Обработчики для джойстика
+    this.joystickContainer.addEventListener('touchstart', this.handleJoystickStart.bind(this), { passive: false });
+    document.addEventListener('touchmove', this.handleJoystickMove.bind(this), { passive: false });
+    document.addEventListener('touchend', this.handleJoystickEnd.bind(this), { passive: false });
+    document.addEventListener('touchcancel', this.handleJoystickEnd.bind(this), { passive: false });
     
-    // Обработчики для кнопки бега
-    this.setupButtonTouchEvents(this.runButton, (pressed) => {
-      this._runPressed = pressed;
-      if (this.onRunCallback) {
-        this.onRunCallback(pressed);
+    // Обработчики для кнопок
+    this.runButton.addEventListener('touchstart', () => {
+      if (this.runButtonCallback) {
+        this.runButtonCallback(true);
       }
-    });
-    
-    // Обработчики для кнопки действия
-    this.setupButtonTouchEvents(this.actionButton, (pressed) => {
-      this._actionPressed = pressed;
-      if (this.onActionCallback) {
-        this.onActionCallback(pressed);
-      }
-    });
-  }
-  
-  // Настройка обработчиков касания для кнопки
-  private setupButtonTouchEvents(button: HTMLElement, callback: (pressed: boolean) => void): void {
-    button.addEventListener('touchstart', (event) => {
-      event.preventDefault();
-      button.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-      callback(true);
     }, { passive: false });
     
-    button.addEventListener('touchend', (event) => {
-      event.preventDefault();
-      button.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-      callback(false);
-    }, { passive: false });
-    
-    button.addEventListener('touchcancel', (event) => {
-      event.preventDefault();
-      button.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-      callback(false);
+    this.runButton.addEventListener('touchend', () => {
+      if (this.runButtonCallback) {
+        this.runButtonCallback(false);
+      }
     }, { passive: false });
   }
   
-  // Показать элементы управления
-  public showControls(): void {
-    if (!this.isMobile) return; // Не показываем на десктопе
+  // Обработчики событий джойстика
+  private handleJoystickStart(event: TouchEvent): void {
+    event.preventDefault();
+    this.updateJoystickPosition(event);
+  }
+  
+  private handleJoystickMove(event: TouchEvent): void {
+    event.preventDefault();
+    this.updateJoystickPosition(event);
+  }
+  
+  private handleJoystickEnd(event: TouchEvent): void {
+    event.preventDefault();
     
-    console.log('Showing mobile controls');
-    this.joystick.show();
-    this.jumpButton.style.display = 'flex';
-    this.runButton.style.display = 'flex';
-    this.actionButton.style.display = 'flex';
-  }
-  
-  // Скрыть элементы управления
-  public hideControls(): void {
-    if (!this.isMobile) return; // Не скрываем на десктопе (их и так нет)
+    // Возвращаем джойстик в центр
+    this.joystickKnob.style.top = '50%';
+    this.joystickKnob.style.left = '50%';
+    this.joystickXValue = 0;
+    this.joystickYValue = 0;
     
-    console.log('Hiding mobile controls');
-    this.joystick.hide();
-    this.jumpButton.style.display = 'none';
-    this.runButton.style.display = 'none';
-    this.actionButton.style.display = 'none';
+    // Вызываем колбэк
+    if (this.joystickEndCallback) {
+      this.joystickEndCallback();
+    }
   }
   
-  // Проверка, является ли устройство мобильным
-  public isMobileDevice(): boolean {
-    // Используем более надежный способ определения мобильного устройства
-    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  private updateJoystickPosition(event: TouchEvent): void {
+    // Находим первое касание
+    const touch = event.touches[0];
+    if (!touch) return;
     
-    // Добавляем отладочную информацию
-    console.log('User agent:', userAgent);
-    console.log('Is mobile device:', isMobile);
+    // Получаем координаты контейнера
+    const rect = this.joystickContainer.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
     
-    return isMobile;
-  }
-  
-  // Получить значения джойстика
-  public getJoystickValues(): { x: number, y: number } {
-    return {
-      x: this.joystick.xValue,
-      y: this.joystick.yValue
-    };
-  }
-  
-  // Получить состояние кнопки прыжка
-  public isJumpPressed(): boolean {
-    return this._jumpPressed;
-  }
-  
-  // Получить состояние кнопки бега
-  public isRunPressed(): boolean {
-    return this._runPressed;
-  }
-  
-  // Получить состояние кнопки действия
-  public isActionPressed(): boolean {
-    return this._actionPressed;
-  }
-  
-  // Установить обработчик для джойстика
-  public onJoystickMove(callback: (x: number, y: number) => void): void {
-    this.joystick.onMove(callback);
-  }
-  
-  // Установить обработчик для окончания движения джойстика
-  public onJoystickEnd(callback: () => void): void {
-    this.joystick.onEnd(callback);
-  }
-  
-  // Установить обработчик для кнопки прыжка
-  public onJump(callback: (pressed: boolean) => void): void {
-    this.onJumpCallback = callback;
-  }
-  
-  // Установить обработчик для кнопки бега
-  public onRun(callback: (pressed: boolean) => void): void {
-    this.onRunCallback = callback;
-  }
-  
-  // Установить обработчик для кнопки действия
-  public onAction(callback: (pressed: boolean) => void): void {
-    this.onActionCallback = callback;
+    // Вычисляем смещение от центра
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+    
+    // Ограничиваем перемещение джойстика
+    const maxDistance = rect.width / 2 - 25; // Радиус контейнера минус радиус кнобки
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > maxDistance) {
+      const angle = Math.atan2(dy, dx);
+      dx = Math.cos(angle) * maxDistance;
+      dy = Math.sin(angle) * maxDistance;
+    }
+    
+    // Обновляем положение кнобки
+    this.joystickKnob.style.left = `calc(50% + ${dx}px)`;
+    this.joystickKnob.style.top = `calc(50% + ${dy}px)`;
+    
+    // Нормализуем значения для использования в игре (-1 до 1)
+    this.joystickXValue = dx / maxDistance;
+    this.joystickYValue = -dy / maxDistance; // Инвертируем Y для соответствия игровым координатам
+    
+    // Вызываем колбэк
+    if (this.joystickMoveCallback) {
+      this.joystickMoveCallback(this.joystickXValue, this.joystickYValue);
+    }
   }
 }
+
+// Глобальная переменная для хранения нажатых клавиш
+const keysPressed: Record<string, boolean> = {};
 
 
 

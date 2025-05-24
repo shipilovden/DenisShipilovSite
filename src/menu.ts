@@ -1,14 +1,15 @@
-import * as THREE from 'three';
-
 export class GameMenu {
-  private container: HTMLElement;
+  private container: HTMLDivElement;
   private startButton: HTMLButtonElement;
-  private titleElement: HTMLHeadingElement;
+  private startCallback: (() => void) | null = null;
   private isVisible: boolean = true;
 
   constructor() {
+    console.log('Initializing GameMenu');
+    
     // Создаем контейнер для меню
     this.container = document.createElement('div');
+    this.container.id = 'game-menu';
     this.container.style.position = 'absolute';
     this.container.style.top = '0';
     this.container.style.left = '0';
@@ -18,20 +19,12 @@ export class GameMenu {
     this.container.style.flexDirection = 'column';
     this.container.style.justifyContent = 'center';
     this.container.style.alignItems = 'center';
-    this.container.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    this.container.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
     this.container.style.zIndex = '1000';
-
-    // Создаем заголовок
-    this.titleElement = document.createElement('h1');
-    this.titleElement.textContent = 'Denis Shipilov Site';
-    this.titleElement.style.color = 'white';
-    this.titleElement.style.fontFamily = 'Arial, sans-serif';
-    this.titleElement.style.fontSize = '48px';
-    this.titleElement.style.marginBottom = '40px';
-    this.container.appendChild(this.titleElement);
-
-    // Создаем кнопку старта
+    
+    // Создаем кнопку START GAME
     this.startButton = document.createElement('button');
+    this.startButton.id = 'start-game-button';
     this.startButton.textContent = 'START GAME';
     this.startButton.style.padding = '15px 30px';
     this.startButton.style.fontSize = '24px';
@@ -40,50 +33,64 @@ export class GameMenu {
     this.startButton.style.border = 'none';
     this.startButton.style.borderRadius = '5px';
     this.startButton.style.cursor = 'pointer';
-    this.startButton.style.transition = 'background-color 0.3s';
+    this.startButton.style.fontWeight = 'bold';
     
-    this.startButton.addEventListener('mouseover', () => {
-      this.startButton.style.backgroundColor = '#45a049';
-    });
+    // Добавляем обработчик клика
+    this.startButton.onclick = (event) => {
+      console.log('START GAME button clicked');
+      event.preventDefault();
+      
+      if (this.startCallback) {
+        console.log('Executing startCallback');
+        this.startCallback();
+      } else {
+        console.error('startCallback is not set');
+      }
+    };
     
-    this.startButton.addEventListener('mouseout', () => {
-      this.startButton.style.backgroundColor = '#4CAF50';
-    });
-    
+    // Добавляем кнопку в контейнер
     this.container.appendChild(this.startButton);
     
-    // Добавляем меню в DOM
+    // Добавляем контейнер в DOM
     document.body.appendChild(this.container);
+    
+    console.log('GameMenu initialized');
   }
 
   public onStart(callback: () => void): void {
-    // Добавляем обработчик события клика
-    this.startButton.addEventListener('click', () => {
-      console.log('Start button clicked');
-      this.hide();
-      callback();
-    });
-    
-    // Добавляем обработчик события касания для мобильных устройств
-    this.startButton.addEventListener('touchstart', (event) => {
-      event.preventDefault();
-      console.log('Start button touched');
-      this.hide();
-      callback();
-    }, { passive: false });
+    this.startCallback = callback;
+    console.log('Start callback set');
   }
-
-  public show(): void {
-    this.container.style.display = 'flex';
-    this.isVisible = true;
-  }
-
+  
   public hide(): void {
     this.container.style.display = 'none';
     this.isVisible = false;
+    console.log('Menu hidden');
   }
-
-  public isMenuVisible(): boolean {
-    return this.isVisible;
+  
+  public show(): void {
+    this.container.style.display = 'flex';
+    this.isVisible = true;
+    console.log('Menu shown');
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

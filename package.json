@@ -4,15 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm run build && npm run serve",
+    "start": "webpack serve --open",
     "build": "webpack",
-    "serve": "webpack serve",
-    "vercel-build": "webpack && mkdir -p dist && cp src/index.html dist/ && mkdir -p dist/models && cp -r models/* dist/models/ || true"
+    "vercel-build": "webpack && mkdir -p dist && cp src/index.html dist/ && mkdir -p dist/models && cp -r src/models/* dist/models/ && mkdir -p dist/textures && cp -r src/textures/* dist/textures/"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "copy-webpack-plugin": "^11.0.0",
     "npm-run-all": "^4.1.5",
     "ts-loader": "^8.1.0",
     "typescript": "^5.8.3",
@@ -21,9 +21,11 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
+    "@tweakpane/core": "^1.1.0",
     "@types/three": "^0.131.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "three": "^0.132.2"
+    "three": "^0.132.2",
+    "tweakpane": "^3.1.10"
   }
 }
