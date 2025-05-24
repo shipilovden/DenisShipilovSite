@@ -80,11 +80,10 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.appendChild(renderer.domElement);
 
-  // Создаем камеру после рендерера
   gameCamera = new GameCamera(renderer);
   camera = gameCamera.getCamera();
   controls = gameCamera.getControls();
-
+  
   // Создаем сцену
   scene = new THREE.Scene();
 
@@ -103,6 +102,9 @@ function init() {
   // Обработчики клавиатуры
   document.addEventListener('keydown', (e) => keyDown(e, keysPressed), false);
   document.addEventListener('keyup', (e) => keyUp(e, keysPressed), false);
+  
+  // Добавляем кнопку настроек сразу после инициализации
+  createSettingsPanel(scene, renderer);
   
   // Запускаем цикл анимации
   animate();
@@ -253,16 +255,10 @@ window.startGame = async function() {
     // Загружаем модель игрока
     await loadPlayerModel();
     
-    // Создаем панель настроек
-    createSettingsPanel(scene, sun, renderer);
-    
     console.log('Game started successfully');
   } catch (error) {
     console.error('Error starting game:', error);
     createDefaultPlayer();
-    
-    // Создаем панель настроек даже при ошибке
-    createSettingsPanel(scene, sun, renderer);
   }
 };
 

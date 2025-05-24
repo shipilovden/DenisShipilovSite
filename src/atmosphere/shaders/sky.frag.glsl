@@ -19,6 +19,9 @@ uniform vec3 fogColor;
 uniform float cloudSpeed;
 uniform float cloudDensity;
 uniform float exposure;
+uniform vec3 horizonColor;
+uniform float starIntensity;
+uniform bool showStars;
 
 // Constants
 const float PI = 3.14159265359;
@@ -138,6 +141,13 @@ vec3 applyFog(vec3 color, vec3 viewDir, vec3 cameraPos, float fogDensity, vec3 f
   float fogAmount = 1.0 - exp(-distance * fogDensity);
   fogAmount *= heightFactor;
   return mix(color, fogColor, fogAmount);
+}
+
+// Stars
+float getStars(vec3 dir, float intensity) {
+  vec3 starPos = dir * 100.0;
+  float starNoise = noise(starPos * 50.0);
+  return smoothstep(0.95, 1.0, starNoise) * intensity;
 }
 
 void main() {

@@ -118,6 +118,10 @@ export function setupSkySettings(pane: Pane, scene: THREE.Scene) {
   // Звезды
   folder.addInput(params, 'showStars', {
     label: 'Показать звезды'
+  }).on('change', (ev) => {
+    if (skyUniforms && skyUniforms.showStars) {
+      skyUniforms.showStars.value = ev.value;
+    }
   });
   
   folder.addInput(params, 'starIntensity', {
@@ -125,6 +129,10 @@ export function setupSkySettings(pane: Pane, scene: THREE.Scene) {
     max: 1,
     step: 0.01,
     label: 'Яркость звезд'
+  }).on('change', (ev) => {
+    if (skyUniforms && skyUniforms.starIntensity) {
+      skyUniforms.starIntensity.value = ev.value;
+    }
   });
   
   // Пресеты
@@ -209,9 +217,63 @@ export function setupSkySettings(pane: Pane, scene: THREE.Scene) {
       if (skyUniforms.cloudSpeed) skyUniforms.cloudSpeed.value = params.cloudSpeed;
       if (skyUniforms.exposure) skyUniforms.exposure.value = params.exposure;
       if (skyUniforms.airDensity) skyUniforms.airDensity.value = params.airDensity;
+      if (skyUniforms.showStars) skyUniforms.showStars.value = params.showStars;
+      if (skyUniforms.starIntensity) skyUniforms.starIntensity.value = params.starIntensity;
+    }
+  });
+  
+  // Добавляем кнопку для сброса настроек
+  folder.addButton({
+    title: 'Сбросить настройки'
+  }).on('click', () => {
+    params.skyColor = { r: 128, g: 200, b: 255 };
+    params.horizonColor = { r: 255, g: 230, b: 200 };
+    params.horizonFade = 0.5;
+    params.cloudDensity = 0.5;
+    params.cloudSpeed = 0.25;
+    params.exposure = 1.0;
+    params.airDensity = 0.01;
+    params.showStars = true;
+    params.starIntensity = 0.5;
+    
+    // Применяем сброшенные настройки
+    if (scene.background instanceof THREE.Color) {
+      scene.background.setRGB(
+        params.skyColor.r / 255,
+        params.skyColor.g / 255,
+        params.skyColor.b / 255
+      );
+    }
+    
+    if (skyUniforms) {
+      if (skyUniforms.fogColor) {
+        skyUniforms.fogColor.value.setRGB(
+          params.skyColor.r / 255,
+          params.skyColor.g / 255,
+          params.skyColor.b / 255
+        );
+      }
+      
+      if (skyUniforms.horizonColor) {
+        skyUniforms.horizonColor.value.setRGB(
+          params.horizonColor.r / 255,
+          params.horizonColor.g / 255,
+          params.horizonColor.b / 255
+        );
+      }
+      
+      if (skyUniforms.horizonFade) skyUniforms.horizonFade.value = params.horizonFade;
+      if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = params.cloudDensity;
+      if (skyUniforms.cloudSpeed) skyUniforms.cloudSpeed.value = params.cloudSpeed;
+      if (skyUniforms.exposure) skyUniforms.exposure.value = params.exposure;
+      if (skyUniforms.airDensity) skyUniforms.airDensity.value = params.airDensity;
+      if (skyUniforms.showStars) skyUniforms.showStars.value = params.showStars;
+      if (skyUniforms.starIntensity) skyUniforms.starIntensity.value = params.starIntensity;
     }
   });
 }
+
+
 
 
 
