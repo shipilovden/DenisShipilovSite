@@ -11,4 +11,7 @@ export const skyUniforms = {
   cloudSpeed: { value: 0.25 },
   cloudDensity: { value: 0.5 },
   exposure: { value: 1.0 },
+  horizonColor: { value: new THREE.Color(1.0, 0.9, 0.8) },
+  starIntensity: { value: 0.5 },
+  showStars: { value: true }
 };
